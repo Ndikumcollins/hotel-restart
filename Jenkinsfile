@@ -1,34 +1,53 @@
-pipeline {
+kpipeline {
     agent any
+
+    environment {
+        // Reads the secret URL safely from Jenkins' internal credential store
+        SLACK_WEBHOOK = credentials('slack-webhook-url')
+    }
 
     stages {
         stage('Build Luxury Image') {
             steps {
-                echo 'Building container image using legacy daemon engine...'
-                // Disabling BuildKit inside Jenkins to avoid missing buildx errors
+                echo 'Building container image...'
                 sh 'DOCKER_BUILDKIT=0 docker build -t hotel-restart-app .'
             }
         }
 
         stage('Deploy Live Instance') {
             steps {
-                echo 'Cleaning up old sandbox environments...'
+                echo 'Cleaning up old container...'
                 sh 'docker stop hotel-sandbox || true'
                 sh 'docker rm hotel-sandbox || true'
                 
-                echo 'Launching fresh container on port 9999...'
+                echo 'Launching fresh container...'
                 sh 'docker run -d --name hotel-sandbox -p 9999:80 hotel-restart-app'
             }
         }
 
         stage('Smoke Test Validation') {
             steps {
-                echo 'Pausing for web server initialization...'
+                echo 'Validating HTTP response...'
                 sleep 3
-                
-                echo 'Verifying HTTP handshake response status...'
                 sh 'curl -I http://localhost:9999 | grep "200 OK"'
             }
+        }
+    }
+
+    post {
+        success {
+            sh '''
+                curl -X POST -H 'Content-type: application/json' \
+                     --data '{"text":"✅ *BUILD SUCCESS*: Branch `'${BRANCH_NAME}'` is live at http://localhost:9999"}' \
+                     ${SLACK_WEBHOOK}
+            '''
+        }
+        failure {
+            sh '''
+                curl -X POST -H 'Content-type: application/json' \
+                     --data '{"text":"🚨 *BUILD FAILED*: Pipeline failed on branch `'${BRANCH_NAME}'`. Check Jenkins logs!"}' \
+                     ${SLACK_WEBHOOK}
+            '''
         }
     }
 }
