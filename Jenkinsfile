@@ -1,10 +1,5 @@
-kpipeline {
+pipeline {
     agent any
-
-    environment {
-        // Reads the secret URL safely from Jenkins' internal credential store
-        SLACK_WEBHOOK = credentials('slack-webhook-url')
-    }
 
     stages {
         stage('Build Luxury Image') {
@@ -38,15 +33,15 @@ kpipeline {
         success {
             sh '''
                 curl -X POST -H 'Content-type: application/json' \
-                     --data '{"text":"✅ *BUILD SUCCESS*: Branch `'${BRANCH_NAME}'` is live at http://localhost:9999"}' \
-                     ${SLACK_WEBHOOK}
+                     --data "{\\"text\\":\\"✅ *BUILD SUCCESS*: Branch ${BRANCH_NAME} is live at http://localhost:9999\\"}" \
+                     "${SLACK_WEBHOOK_URL}"
             '''
         }
         failure {
             sh '''
                 curl -X POST -H 'Content-type: application/json' \
-                     --data '{"text":"🚨 *BUILD FAILED*: Pipeline failed on branch `'${BRANCH_NAME}'`. Check Jenkins logs!"}' \
-                     ${SLACK_WEBHOOK}
+                     --data "{\\"text\\":\\"🚨 *BUILD FAILED*: Pipeline failed on branch ${BRANCH_NAME}. Check Jenkins logs!\\"}" \
+                     "${SLACK_WEBHOOK_URL}"
             '''
         }
     }
