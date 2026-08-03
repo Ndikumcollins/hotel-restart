@@ -1,0 +1,40 @@
+name: Deploy Hotel App to AWS EC2
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            # Navigate to directory or clone if first run
+            cd /home/ubuntu/hotel-restart || git clone https://github.com/Ndikumcollins/hotel-restart.git /home/ubuntu/hotel-restart
+            cd /home/ubuntu/hotel-restart
+
+            # Pull latest changes
+            git pull origin main
+
+            # Stop existing container if running
+            sudo docker stop hotel-container || true
+            sudo docker rm hotel-container || true
+
+            # Build and start new container
+            sudo docker build -t hotel-restart-app .
+            sudo docker run -d --name hotel-container -p 80:80 hotel-restart-app
+
+            # Clean up old unused images
+            sudo docker image prune -f
