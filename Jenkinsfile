@@ -10,8 +10,14 @@ pipeline {
         }
         stage('Terraform Init') {
             steps {
-                echo 'Initializing Terraform...'
-                sh 'terraform version || echo "Terraform step ready!"'
+                echo 'Initializing Terraform configuration...'
+                sh 'terraform init -backend=false'
+            }
+        }
+        stage('Terraform Validate') {
+            steps {
+                echo 'Validating Terraform syntax...'
+                sh 'terraform validate'
             }
         }
     }
